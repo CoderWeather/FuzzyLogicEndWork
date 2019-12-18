@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import warnings
-# warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore')
 
 
 def read_genres_from_df(data_frame: pd.DataFrame) -> list:
@@ -34,21 +34,20 @@ def clustering(df: pd.DataFrame):
 
     # plt.scatter(df.rate, df.metascore, c=labels, s=df.awards_nominations, alpha=0.5)
     # plt.scatter(centroids[:, 0], centroids[:, 1], s=df.awards_nominations, c='r')
-    # df['colors'] = kmeans.labels_
-    # df.plot.scatter('rate', 'metascore', 
-    #                 c='colors', colormap='gist_rainbow')
+    df['colors'] = kmeans.labels_
+    df.plot.scatter('rate', 'metascore', c='colors', colormap='gist_rainbow')
     
-    n = 1000
-    d = pd.DataFrame({
-            'x': np.random.randint(0,100,n),
-            'y': np.random.randint(0,100,n),
-        })
-    
-    m = KMeans(5)
-    m.fit(d)
-    
-    d['cl'] = m.labels_
-    d.plot.scatter('x', 'y', c='cl', colormap='gist_rainbow')
+#    n = 1000
+#    d = pd.DataFrame({
+#            'x': np.random.randint(0,100,n),
+#            'y': np.random.randint(0,100,n),
+#        })
+#    
+#    m = KMeans(5)
+#    m.fit(d)
+#    
+#    d['cl'] = m.labels_
+#    d.plot.scatter('x', 'y', c='cl', colormap='gist_rainbow')
 
 def main():
     df = pd.read_csv('dataset.csv')
