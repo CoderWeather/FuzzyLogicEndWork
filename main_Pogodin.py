@@ -1,43 +1,21 @@
 # -*- coding: utf-8 -*-
 
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-from sklearn.tree import export_graphviz
-from sklearn import tree, metrics
+from sklearn import metrics
 
 import pandas as pd
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 import numpy as np
 import mglearn
-import os
 import matplotlib.pyplot as plt
-import six
-import pydot
 import random
-
-from IPython import display
 
 import warnings
 warnings.filterwarnings('ignore')
 
-
-def read_genres_from_df(data_frame: pd.DataFrame) -> list:
-    raw_genres = []
-    for genre in data_frame['genre'].to_string().split():
-        if not genre.isnumeric():
-            raw_genres.append(genre)
-
-    res_genres = []
-    for i in range(len(raw_genres)):
-        temp_genres = raw_genres[i].split('|')
-        res_genres.extend(temp_genres)
-
-    res_genres = list(set(res_genres))
-    return res_genres
 
 def set_genre_ranking(df: pd.DataFrame):
     row_count = len(df.loc[:, 'genre'])
@@ -69,71 +47,92 @@ def clustering_KMeans(df: pd.DataFrame, n_clusters:int, x_label: str, y_label: s
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     
-    # kmeans = KMeans(n_clusters=5).fit(df[['genre', 'metascore']])
     kmeans = KMeans(n_clusters=n_clusters).fit(df[[x_label, y_label]])
     centroids = kmeans.cluster_centers_
     labels = kmeans.labels_.astype(float)
     
-    plt.scatter(x, y, c=labels, s=df.loc[:, 'awards_nominations'])
-    plt.scatter(centroids[:, 0], centroids[:, 1], marker='v', c='r')
-
-
-def visualize_classifier(model, X, y, ax=None, cmap='gist_rainbow'):
-    ax = ax or plt.gca()
-    
-    # Plot the training points
-    ax.scatter(X[:, 0], X[:, 1], c=y, s=30, cmap=cmap,
-               clim=(y.min(), y.max()), zorder=3)
-    ax.axis('tight')
-    ax.axis('off')
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-
-    xx, yy = np.meshgrid(np.linspace(*xlim, num=200),
-                         np.linspace(*ylim, num=200))
-    print('xx', type(xx), xx.shape)
-    Z = model.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-
-    n_classes = len(np.unique(y))
-    contours = ax.contourf(xx, yy, Z, alpha=0.3,
-                           levels=np.arange(n_classes + 1) - 0.5,
-                           cmap=cmap, clim=(y.min(), y.max()),
-                           zorder=1)
-
-    ax.set(xlim=xlim, ylim=ylim)
+    # plt.scatter(x, y, c=labels, s=df.loc[:, 'duration'])
+    plt.scatter(x, y, c=labels, s=10)
+    plt.scatter(centroids[:, 0], centroids[:, 1], marker='x', c='r', s=100)
 
 
 def random_forest(df: pd.DataFrame):
     # fig, axes = plt.subplots()
     
     x = df[['rate',
-            'duration', 
             'awards_nominations', 
             'awards_wins', 
             'gross', 
             'genre_rank'
-            # 'metascore'
             ]].to_numpy()
     y = df['metascore'].to_numpy()
     
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5, random_state=0)
     regressor = RandomForestRegressor(n_estimators=250, random_state=0)
+    classifier = RandomForestClassifier(n_estimators=250, random_state=0)
     
     regressor.fit(x_train, y_train)
+    classifier.fit(x_train, y_train)
     
     y_pred_r = regressor.predict(x_test)
+    y_pred_c = classifier.predict(x_test)
     
     print("R_Правильность на обучающем наборе: {:.3f}".format(regressor.score(x_train, y_train)))
     print("R_Правильность на тестовом наборе: {:.3f}".format(regressor.score(x_test, y_test)))
     
-    print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred_r))
-    print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred_r))
-    print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred_r)))
-
-
-def fuzzy_logic(df: pd.DataFrame):
+    print("C_Правильность на обучающем наборе: {:.3f}".format(classifier.score(x_train, y_train)))
+    print("C_Правильность на тестовом наборе: {:.3f}".format(classifier.score(x_test, y_test)))
     
-    pass
+    # print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred_r))
+    # print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred_r))
+    # print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred_r)))
+
+
+def fuzzy_logic(df: pd.DataFrame, labels: list):
+    # fuzzy_objects = {}
+    metascore_list = df['metascore'].to_list()
+    rate_list = df['rate'].to_list()
+    popularity_list = df['popularity'].to_list()
+    votes_list = df['votes'].to_list()
+    awards_n_list = df['awards_nominations'].to_list()
+    awards_w_list = df['awards_wins'].to_list()
+    
+    metascore =  ctrl.Antecedent(metascore_list,  'metascore')
+    rate =       ctrl.Antecedent(rate_list,       'rate')
+    popularity = ctrl.Antecedent(popularity_list, 'popularity')
+    votes =      ctrl.Antecedent(votes_list,      'votes')
+    awards_nominations = ctrl.Antecedent(awards_n_list,      'awards_nominations')
+    awards_wins = ctrl.Antecedent(awards_w_list,      'awards_wins')
+    
+    metascore.automf()
+    rate.automf()
+    popularity.automf()
+    votes.automf()
+    awards_wins.automf()
+    awards_nominations.automf()
+    
+    metascore.view()
+    # rate.view()
+    popularity.view()
+    # votes.view()
+    awards_wins.view()
+    awards_nominations.view()
+    
+    # rule1 = ctrl.Rule(metascore['good'] | popularity['good'], awards_nominations['good'])
+    # rule2 = ctrl.Rule(awards_nominations['good'] | popularity['good'], awards_wins['good'])
+    # rule3 = ctrl.Rule(votes['good'] | rate['good'], metascore['good'])
+    
+    # ctrl_system = ctrl.ControlSystem([rule1, rule2, rule3])
+    # sim = ctrl.ControlSystemSimulation(ctrl_system)
+    
+    # sim.input['metascore'] = random.randrange(min(metascore_list), max(metascore_list))
+    # sim.input['awards_nominations'] = random.randrange(min(awards_n_list), max(awards_n_list))
+    # sim.input['popularity'] = random.randrange(min(popularity_list), max(popularity_list))
+    # sim.input['votes'] = random.randrange(min(votes_list), max(votes_list))
+    # sim.input['rate'] = random.uniform(min(rate_list), max(rate_list))
+    # sim.input['awards_wins'] = random.randrange(min(awards_w_list), max(awards_w_list))
+    
+    # sim.compute()
 
 
 def get_collaborative_recommendation(fav_films, film_corr, film_titles):
@@ -180,37 +179,22 @@ def collaborative_filtering(df: pd.DataFrame):
     print('-'*50)
 
 def main():
-    df = pd.read_csv('dataset.csv')
-    df = df[['movie_id', 'movie', 'certificate', 'duration', 'gross', 
+    df = pd.read_csv('dataset_Pogodin.csv')
+    df = df[['movie_id', 'movie', 'duration', 'gross', 
              'genre', 'rate', 'metascore', 'popularity', 
              'awards_nominations', 'awards_wins', 
-             'votes']]
+             'votes', 'user_reviews', 'critic_reviews']]
     set_genre_ranking(df)
-    # genres_list = read_genres_from_df(df)
-    # df_with_genres = df.copy()
-    # print(list(df.loc[:, 'genre'])[25])
-    
-    # for i in range(len(df.loc[:, 'genre'])):
-    #     temp_genres_list = df.loc[:, 'genre'][i].split('|')
-    #     temp_value = 0
-    #     temp_genres = []
-    #     for genre in temp_genres_list:
-    #         temp_value += genres_list.index(genre)
-    #         temp_genres.append(genre)
-    #     df            .loc[:, 'genre'][i] = temp_value
-    #     df_with_genres.loc[:, 'genre'][i] = temp_genres
-        
-    # df.loc[:, 'genre'] = pd.to_numeric(df.loc[:, 'genre'])
     df.dropna(inplace=True)
     
-    # clustering_KMeans(df, 5, 'genre_rank', 'rate')
-    clustering_KMeans(df, 3, 'gross', 'genre_rank')
+    # clustering_KMeans(df, 4, 'genre_rank', 'metascore')
+    # clustering_KMeans(df, 5, 'awards_nominations', 'awards_wins')
     
     # random_forest(df)
     
     # collaborative_filtering(df)
     
-    # fuzzy_logic(df)
+    # fuzzy_logic(df, ['metascore', 'popularity'])
 
 if __name__ == '__main__':
     main()
